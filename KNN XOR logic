@@ -1,0 +1,3 @@
+And if we introduce the NAND operator as the combination of AND and NOT, then we get the following two-layer perceptron that will model XOR. That's our first neural network!
+
+XOR = Not(A And B) And (A or B)
