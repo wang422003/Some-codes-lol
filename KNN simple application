@@ -29,3 +29,10 @@ if not num_wrong:
 else:
     print('You got {} wrong.  Keep trying!\n'.format(num_wrong))
 print(output_frame.to_string(index=False))
+
+
+#Logic Not 
+#Ignore the 1st input and deal with the 2nd input
+weight1 = 0
+weight2 = -1.5
+bias = 1
