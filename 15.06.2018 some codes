@@ -1,0 +1,174 @@
+import numpy as np
+# 2 by 2 matrices
+w1  = np.array([[1, 2], [3, 4]])
+w2  = np.array([[5, 6], [7, 8]])
+
+# flatten
+w1_flat = np.reshape(w1, -1)
+w2_flat = np.reshape(w2, -1)
+
+w = np.concatenate((w1_flat, w2_flat))
+# w = array([1, 2, 3, 4, 5, 6, 7, 8])
+
+
+
+#Loss / Cost function 1
+class MSE(Node):
+    def __init__(self, y, a):
+        """
+        The mean squared error cost function.
+        Should be used as the last node for a network.
+        """
+        # Call the base class' constructor.
+        Node.__init__(self, [y, a])
+
+    def forward(self):
+        """
+        Calculates the mean squared error.
+        """
+        # NOTE: We reshape these to avoid possible matrix/vector broadcast
+        # errors.
+        #
+        # For example, if we subtract an array of shape (3,) from an array of shape
+        # (3,1) we get an array of shape(3,3) as the result when we want
+        # an array of shape (3,1) instead.
+        #
+        # Making both arrays (3,1) insures the result is (3,1) and does
+        # an elementwise subtraction as expected.
+        y = self.inbound_nodes[0].value.reshape(-1, 1)
+        a = self.inbound_nodes[1].value.reshape(-1, 1)
+        # TODO: your code here
+        ms = y - a 
+        mse = np.reshape(ms,-1)
+        ma = np.square(mse)
+        MSE = 0
+        for number in ma:
+            MSE = MSE + number
+        
+        self.value = MSE / len(ma)
+        
+ ###################
+ #Loss / Cost function 2
+ class MSE(Node):
+    def __init__(self, y, a):
+        """
+        The mean squared error cost function.
+        Should be used as the last node for a network.
+        """
+        # Call the base class' constructor.
+        Node.__init__(self, [y, a])
+
+    def forward(self):
+        """
+        Calculates the mean squared error.
+        """
+        # NOTE: We reshape these to avoid possible matrix/vector broadcast
+        # errors.
+        #
+        # For example, if we subtract an array of shape (3,) from an array of shape
+        # (3,1) we get an array of shape(3,3) as the result when we want
+        # an array of shape (3,1) instead.
+        #
+        # Making both arrays (3,1) insures the result is (3,1) and does
+        # an elementwise subtraction as expected.
+        y = self.inbound_nodes[0].value.reshape(-1, 1)
+        a = self.inbound_nodes[1].value.reshape(-1, 1)
+        m = self.inbound_nodes[0].value.shape[0]
+
+        diff = y - a
+        self.value = np.mean(diff**2)
+        
+#######################
+some on learning_rate:
+
+def gradient_descent_update(x, gradx, learning_rate):
+    """
+    Performs a gradient descent update.
+    """
+    # TODO: Implement gradient descent.
+    x = x - learning_rate * gradx
+    # Return the new value for x
+    return x
+"""
+Given the starting point of any `x` gradient descent
+should be able to find the minimum value of x for the
+cost function `f` defined below.
+"""
+import random
+from gd import gradient_descent_update
+
+
+def f(x):
+    """
+    Quadratic function.
+
+    It's easy to see the minimum value of the function
+    is 5 when is x=0.
+    """
+    return x**2 + 5
+
+
+def df(x):
+    """
+    Derivative of `f` with respect to `x`.
+    """
+    return 2*x
+
+
+
+x = random.randint(0, 10000)
+
+learning_rate = 0.1 ###
+epochs = 100
+
+for i in range(epochs+1):
+    cost = f(x)
+    gradx = df(x)
+    print("EPOCH {}: Cost = {:.3f}, x = {:.3f}".format(i, cost, gradx))
+    x = gradient_descent_update(x, gradx, learning_rate)
+    
+###################################
+## New Node Class for backpropagation:
+class Node(object):
+    """
+    Base class for nodes in the network.
+
+    Arguments:
+
+        `inbound_nodes`: A list of nodes with edges into this node.
+    """
+    def __init__(self, inbound_nodes=[]):
+        """
+        Node's constructor (runs when the object is instantiated). Sets
+        properties that all nodes need.
+        """
+        # A list of nodes with edges into this node.
+        self.inbound_nodes = inbound_nodes
+        # The eventual value of this node. Set by running
+        # the forward() method.
+        self.value = None
+        # A list of nodes that this node outputs to.
+        self.outbound_nodes = []
+        # New property! Keys are the inputs to this node and
+        # their values are the partials of this node with
+        # respect to that input.
+        self.gradients = {}
+        # Sets this node as an outbound node for all of
+        # this node's inputs.
+        for node in inbound_nodes:
+            node.outbound_nodes.append(self)
+
+    def forward(self):
+        """
+        Every node that uses this class as a base class will
+        need to define its own `forward` method.
+        """
+        raise NotImplementedError
+
+    def backward(self):
+        """
+        Every node that uses this class as a base class will
+        need to define its own `backward` method.
+        """
+        raise NotImplementedError
+
