@@ -1,0 +1,23 @@
+# coding: utf-8
+
+import scipy.io as sio
+import numpy as np
+
+
+#Read the.mat file
+mat_contents = sio.loadmat('./New/Output.mat')
+
+
+#mat_contents is a dict type variable
+print(mat_contents)
+
+
+#Get the data from the dict
+a = mat_contents['Output']
+
+
+print(np.shape(a))
+
+
+#Save the variavle a in .mat file
+sio.savemat('np_a.mat', {'a':a})
