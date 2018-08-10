@@ -1,0 +1,352 @@
+# coding: utf-8
+
+# In[1]:
+
+import csv
+import pandas as pd
+#Read from the .csv file
+def returnData(file_path):# extract the IDs
+#        reader = csv.reader(f, fieldnames=['I_a[A]','I_b[A]', 'I_c[A]','I_bat[A]','T_ist[Nm]','I_circ[A]'])
+    with open(file_path) as f:
+        reader = csv.reader(f)#, fieldnames=['I_a[A]','I_b[A]', 'I_c[A]','I_bat[A]','T_ist[Nm]','I_circ[A]']
+        next(reader)
+        data = [r for r in reader]
+        #t [s],I_a [A],I_b [A],I_c [A],I_bat [A],I_circ [A],I_f [A],V_a [V],V_b [V],V_c [V],T_ist [Nm]
+    return data
+
+
+# In[2]:
+
+#Save necessary data in the ndarray(s).
+#Dat[:,0]=(Read[:][1])
+def OneFlieDataProcessing(Read):
+    Dat = np.ndarray(shape=(1001,6))
+    Label_Save = np.ndarray(shape=(1001,1))
+    for i in range(0,1000):
+        Dat[i,0]=float(Read[i][1])
+        Dat[i,1]=float(Read[i][2])
+        Dat[i,2]=float(Read[i][3])
+        Dat[i,3]=float(Read[i][4])
+        Dat[i,4]=float(Read[i][-1])
+        Label_Save[i,0]=float(Read[i][5])
+    return Dat, Label_Save
+
+
+# In[49]:
+
+import os
+import numpy as np
+from numpy import mean, sqrt, square, arange
+from numpy import zeros, newaxis
+#Processing with the file flows
+#Get the file names
+File_Name_List = os.listdir('./CSV_DATEI_neu/')
+#Initialize the lists(array) for labels and training data
+Data_Store = []
+Label_Store = []
+for name in File_Name_List:
+    Motor_Omega = (int(name[5:10]))
+    File_Reader = returnData('./CSV_DATEI_neu/'+ name)
+    D,L = OneFlieDataProcessing(File_Reader)
+    D[:,5] = Motor_Omega
+    rms = np.sqrt(np.mean(L**2))
+    Data_Store.append(D)
+    Label_Store.append(rms)
+    
+Data_Train = np.array(Data_Store)
+Label_Train = np.array(Label_Store)
+Data_Train = Data_Train[:, :, :, newaxis]    
+#Label_Train = Label_Train[:, :, :, newaxis]    
+
+
+# In[50]:
+
+#Check the Label Data
+print(Label_Train.shape)
+print(type(Label_Train))
+print(Label_Train)
+
+
+# In[51]:
+
+#Check the Train Data
+print(Data_Train.shape)
+print(type(Data_Train))
+print(Data_Train)
+
+
+# In[52]:
+
+#Visualize the labels
+import matplotlib.pyplot as plt  # Matlab-style plotting
+import seaborn as sns
+
+#fig, ax = plt.subplots()
+#histogram
+
+x = np.arange(1,4688)
+y = Label_Train
+
+
+plt.scatter(x, y,s= 1.8)
+plt.title("Visualizing the labels.")
+plt.show()
+#a = sns.distplot(Label_Train)
+
+
+
+
+
+# In[54]:
+
+#Data preprocessing, get the 0 out!!!!!!!!
+for i,element in enumerate(Label_Train):
+    if element == 0:
+        Label_Train[i] = 1*10**(-8)
+    elif element > 8000:
+        Label_Train[i] = 8000
+for x in np.nditer(Data_Train, op_flags=['readwrite']):
+    if x[...] == 0:
+        x[...] = 1*10**(-8)
+print('Preprocessing is done.')
+
+
+# In[55]:
+
+#Visualizing the labels again
+x = np.arange(1,4688)
+y = Label_Train
+
+
+plt.scatter(x, y, s= 1.8)
+plt.title("Visualizing the labels after preprocessing.")
+plt.show()
+
+print('The biggest data in the labels is: {}'.format(np.max(Label_Train)))
+print('The smallest data in the labels is: {}'.format(np.min(Label_Train)))
+
+
+# In[ ]:
+
+## Shuffle the training dataset
+# Unfinished
+from sklearn.utils import shuffle
+
+X_train_pr, Y_train_pr = shuffle(Data_Train, Label_Train)
+
+print('Shuffle is done.')
+
+
+# In[ ]:
+
+## Split validation dataset off from training dataset
+# Unfinished
+from sklearn.model_selection import train_test_split
+
+X_train, X_validation, Y_train, Y_validation = train_test_split(X_train_pr, Y_train_pr, 
+                                                                test_size=0.20, random_state=42)
+
+print("Old X_train size:",len(X_train_pr))
+print("New X_train size:",len(X_train))
+print("X_validation size:",len(X_validation))
+
+
+# In[ ]:
+
+import tensorflow as tf
+# Unfinished
+EPOCHS = 60
+BATCH_SIZE = 100
+
+print('Import tf is done.')
+
+
+# In[ ]:
+
+# Net structure
+# Unfinished
+from tensorflow.contrib.layers import flatten
+
+def LeNet(x):    
+    # Hyperparameters
+    mu = 0
+    sigma = 0.1
+    
+    # TODO: Layer 1: Convolutional. Input = 32x32x1. Output = 28x28x6.
+    W1 = tf.Variable(tf.truncated_normal(shape=(5, 5, 1, 6), mean = mu, stddev = sigma))
+    x = tf.nn.conv2d(x, W1, strides=[1, 1, 1, 1], padding='VALID')
+    b1 = tf.Variable(tf.zeros(6))
+    x = tf.nn.bias_add(x, b1)
+    print("layer 1 shape:",x.get_shape())
+
+    # TODO: Activation.
+    x = tf.nn.relu(x)
+    
+    # TODO: Pooling. Input = 28x28x6. Output = 14x14x6.
+    x = tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='VALID')
+    
+    # TODO: Layer 2: Convolutional. Output = 10x10x16.
+    W2 = tf.Variable(tf.truncated_normal(shape=(5, 5, 6, 16), mean = mu, stddev = sigma))
+    x = tf.nn.conv2d(x, W2, strides=[1, 1, 1, 1], padding='VALID')
+    b2 = tf.Variable(tf.zeros(16))
+    x = tf.nn.bias_add(x, b2)
+                     
+    # TODO: Activation.
+    x = tf.nn.relu(x)
+
+    # TODO: Pooling. Input = 10x10x16. Output = 5x5x16.
+    x = tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='VALID')
+
+    # TODO: Flatten. Input = 5x5x16. Output = 400.
+    x = flatten(x)
+    
+    # TODO: Layer 3: Fully Connected. Input = 400. Output = 120.
+    W3 = tf.Variable(tf.truncated_normal(shape=(400, 120), mean = mu, stddev = sigma))
+    b3 = tf.Variable(tf.zeros(120))    
+    x = tf.add(tf.matmul(x, W3), b3)
+    
+    # TODO: Activation.
+    x = tf.nn.relu(x)
+    
+    # Dropout
+    x = tf.nn.dropout(x, keep_prob)
+
+    # TODO: Layer 4: Fully Connected. Input = 120. Output = 84.
+    W4 = tf.Variable(tf.truncated_normal(shape=(120, 84), mean = mu, stddev = sigma))
+    b4 = tf.Variable(tf.zeros(84)) 
+    x = tf.add(tf.matmul(x, W4), b4)
+    
+    # TODO: Activation.
+    x = tf.nn.relu(x)
+    
+    # Dropout
+    x = tf.nn.dropout(x, keep_prob)
+
+    # TODO: Layer 5: Fully Connected. Input = 84. Output = 43.
+    W5 = tf.Variable(tf.truncated_normal(shape=(84, 43), mean = mu, stddev = sigma))
+    b5 = tf.Variable(tf.zeros(43)) 
+    logits = tf.add(tf.matmul(x, W5), b5)
+    
+    return logits
+
+print('done')
+
+
+# In[ ]:
+
+
+
+
+# In[ ]:
+
+
+
+
+# In[62]:
+
+# The net structure in keras.model
+# Finished
+row, col, ch=  1001, 6, 1 # Trimmed image format
+from keras.models import Sequential
+from keras.layers import Flatten, Dense, Lambda, Activation, Dropout
+from keras.layers import Convolution2D, MaxPooling2D , Cropping2D
+from keras.optimizers import SGD
+# compile and train the model using the generator function
+
+model = Sequential()
+# Preprocess incoming data, centered around zero with small standard deviation 
+#model.add(Lambda(lambda x: x/255 - 0.5,input_shape=( row, col,ch)))
+#model.add(Cropping2D(cropping=((70,25), (0,0))))
+#Nvidia Net 
+model.add(Convolution2D(3,6,6,subsample = (2,2),activation = 'relu',input_shape=( 1001, 6, 1)))
+#model.add(Convolution2D(3,3,3,subsample = (2,2),activation = 'relu'))
+#model.add(Convolution2D(48,5,5,subsample = (2,2),activation = 'relu'))
+#model.add(Convolution2D(64, 3, 3, activation = 'relu'))
+#model.add(Convolution2D(64, 3, 3, activation = 'relu'))
+model.add(Dropout(0.5))
+model.add(Flatten())#input_shape=(row, col, ch)
+model.add(Dense(1000))
+model.add(Dropout(0.5))
+model.add(Dense(500))
+model.add(Dropout(0.5))
+model.add(Dense(200))
+model.add(Dense(1))
+
+model.compile(loss='mse', optimizer='adam') #Adam optimizer
+#sgd = SGD(lr=0.1, decay=0, momentum=0.9, nesterov=True)
+#model.compile(loss='mean_squared_error', optimizer=sgd)
+history_object= model.fit(Data_Train, Label_Train, validation_split = 0.2, shuffle = True , nb_epoch = 50)
+scores = model.evaluate(Data_Train, Label_Train, verbose=0)
+model.summary()
+print("{}".format(scores))
+
+
+# In[63]:
+
+print("{}".format(scores))
+
+
+# In[64]:
+
+# Save the model in keras.
+# 1. Save the Neural Network Model to JSON
+from keras.models import model_from_json
+# serialize model to JSON
+model_json = model.to_json()
+with open("model.json", "w") as json_file:
+    json_file.write(model_json)
+# serialize weights to HDF5
+model.save_weights("model.h5")
+print("Saved model to disk as JSON")
+
+
+
+# In[ ]:
+
+# 2. Save the Neural Network Model to YAML
+# serialize model to YAML
+
+#Uncomment the next lines 
+
+#model_yaml = model.to_yaml()
+#with open("model.yaml", "w") as yaml_file:
+#    yaml_file.write(model_yaml)
+## serialize weights to HDF5
+#model.save_weights("model.h5")
+#print("Saved model to disk as YAML")
+
+
+# In[65]:
+
+# Load the model from the disk
+# load json and create model
+json_file = open('model.json', 'r')
+loaded_model_json = json_file.read()
+json_file.close()
+loaded_model = model_from_json(loaded_model_json)
+# load weights into new model
+loaded_model.load_weights("model.h5")
+print("Loaded JSON model from disk")
+
+
+# In[ ]:
+
+# load YAML and create model
+
+#Uncomment the next lines 
+
+#yaml_file = open('model.yaml', 'r')
+#loaded_model_yaml = yaml_file.read()
+#yaml_file.close()
+#loaded_model = model_from_yaml(loaded_model_yaml)
+## load weights into new model
+#loaded_model.load_weights("model.h5")
+#print("Loaded YAML model from disk")
+
+
+# In[66]:
+
+# evaluate loaded model on test data
+loaded_model.compile(loss='mse', optimizer='adam')
+score = loaded_model.evaluate(Data_Train, Label_Train, verbose=0)
+print("{}".format(scores))
