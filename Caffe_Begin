@@ -1,0 +1,101 @@
+http://christopher5106.github.io/deep/learning/2015/09/04/Deep-learning-tutorial-on-Caffe-Technology.html
+https://blog.csdn.net/u011762313/article/details/48213421
+
+##1. Load a pretrained model and use it for a classification task
+#load the model
+net = caffe.Net('models/bvlc_reference_caffenet/deploy.prototxt',
+                'models/bvlc_reference_caffenet/bvlc_reference_caffenet.caffemodel',
+                caffe.TEST)
+
+# load input and configure preprocessing
+transformer = caffe.io.Transformer({'data': net.blobs['data'].data.shape})
+transformer.set_mean('data', np.load('python/caffe/imagenet/ilsvrc_2012_mean.npy').mean(1).mean(1))
+transformer.set_transpose('data', (2,0,1))
+transformer.set_channel_swap('data', (2,1,0))
+transformer.set_raw_scale('data', 255.0)
+
+#note we can change the batch size on-the-fly
+#since we classify only one image, we change batch size from 10 to 1
+net.blobs['data'].reshape(1,3,227,227)
+
+#load the image in the data layer
+im = caffe.io.load_image('examples/images/cat.jpg')
+net.blobs['data'].data[...] = transformer.preprocess('data', im)
+
+#compute
+out = net.forward()
+
+# other possibility : out = net.forward_all(data=np.asarray([transformer.preprocess('data', im)]))
+
+#predicted predicted class
+print out['prob'].argmax()
+
+#print predicted labels
+labels = np.loadtxt("data/ilsvrc12/synset_words.txt", str, delimiter='\t')
+top_k = net.blobs['prob'].data[0].flatten().argsort()[-1:-6:-1]
+print labels[top_k]
+
+##2.Compute accuracy of the model on the test data
+accuracy = 0
+batch_size = solver.test_nets[0].blobs['data'].num
+test_iters = int(len(Xt) / batch_size)
+for i in range(test_iters):
+    solver.test_nets[0].forward()
+    accuracy += solver.test_nets[0].blobs['accuracy'].data
+accuracy /= test_iters
+
+print("Accuracy: {:.3f}".format(accuracy))
+
+##3.Define a model in Python
+from caffe import layers as L
+from caffe import params as P
+
+def lenet(lmdb, batch_size):
+    # our version of LeNet: a series of linear and simple nonlinear transformations
+    n = caffe.NetSpec()
+    n.data, n.label = L.Data(batch_size=batch_size, backend=P.Data.LMDB, source=lmdb,
+                             transform_param=dict(scale=1./255), ntop=2)
+    n.conv1 = L.Convolution(n.data, kernel_size=5, num_output=20, weight_filler=dict(type='xavier'))
+    n.pool1 = L.Pooling(n.conv1, kernel_size=2, stride=2, pool=P.Pooling.MAX)
+    n.conv2 = L.Convolution(n.pool1, kernel_size=5, num_output=50, weight_filler=dict(type='xavier'))
+    n.pool2 = L.Pooling(n.conv2, kernel_size=2, stride=2, pool=P.Pooling.MAX)
+    n.ip1 = L.InnerProduct(n.pool2, num_output=500, weight_filler=dict(type='xavier'))
+    n.relu1 = L.ReLU(n.ip1, in_place=True)
+    n.ip2 = L.InnerProduct(n.relu1, num_output=10, weight_filler=dict(type='xavier'))
+    n.loss = L.SoftmaxWithLoss(n.ip2, n.label)
+    return n.to_proto()
+
+with open('examples/mnist/lenet_auto_train.prototxt', 'w') as f:
+    f.write(str(lenet('examples/mnist/mnist_train_lmdb', 64)))
+
+with open('examples/mnist/lenet_auto_test.prototxt', 'w') as f:
+    f.write(str(lenet('examples/mnist/mnist_test_lmdb', 100)))
+    
+##4. Add a layer in the old layer file:
+import caffe
+import numpy as np
+import yaml
+
+class MyLayer(caffe.Layer):
+
+    def setup(self, bottom, top):
+        self.num = yaml.load(self.param_str)["num"]
+        print "Parameter num : ", self.num
+
+    def reshape(self, bottom, top):
+        pass
+
+    def forward(self, bottom, top):
+        top[0].reshape(*bottom[0].shape)
+        top[0].data[...] = bottom[0].data + self.num
+
+    def backward(self, top, propagate_down, bottom):
+        pass
+        
+ ######then in the grand script:
+net = caffe.Net('conv.prototxt',caffe.TEST)
+im = np.array(Image.open('cat_gray.jpg'))
+im_input = im[np.newaxis, np.newaxis, :, :]
+net.blobs['data'].reshape(*im_input.shape)
+net.blobs['data'].data[...] = im_input
+net.forward()
